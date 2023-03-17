@@ -16,6 +16,7 @@ from frappe.model.base_document import BaseDocument, get_controller
 from frappe.model.docstatus import DocStatus
 from frappe.model.naming import set_new_name, validate_name
 from frappe.model.utils import is_virtual_doctype
+from frappe.model.workflow import validate_workflow, get_workflow_name  # workflow change
 from frappe.model.workflow import set_workflow_state_on_action, validate_workflow
 from frappe.utils import cstr, date_diff, file_lock, flt, get_datetime_str, now
 from frappe.utils.data import get_absolute_url
@@ -579,9 +580,9 @@ class Document(BaseDocument):
 
 	def validate_workflow(self):
 		"""Validate if the workflow transition is valid"""
-		if frappe.flags.in_install == "frappe":
-			return
-		workflow = self.meta.get_workflow()
+		if frappe.flags.in_install == 'frappe': return
+		# workflow change
+		workflow = get_workflow_name(self)
 		if workflow:
 			validate_workflow(self)
 			if not self._action == "save":
