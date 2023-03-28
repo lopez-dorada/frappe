@@ -27,12 +27,11 @@ class WorkflowPermissionError(frappe.ValidationError):
 # workflow change
 def get_workflow_name(doc_or_doctype):
 	if type(doc_or_doctype) is str:
-		workflow_name = frappe.db.get_value("Workflow", {"document_type": doc_or_doctype,
-				"is_active": 1}, "name")
+		workflow_name = frappe.db.get_value("Workflow", {"document_type": doc_or_doctype, "is_active": 1}, "name")
 		frappe.cache().hset('workflow', doc_or_doctype, workflow_name or '')
 		return workflow_name or ''
 	else:
-		workflow_name = doc_or_doctype.get('workflow')
+		workflow_name = doc_or_doctype.get('workflow_instance_name')
 		if workflow_name:
 			frappe.cache().hset('workflow', doc_or_doctype.doctype, workflow_name)
 			return workflow_name
