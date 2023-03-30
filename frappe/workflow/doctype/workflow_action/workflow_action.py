@@ -71,9 +71,9 @@ def has_permission(doc, user):
 
 
 def process_workflow_actions(doc, state):
-	workflow = get_workflow_name(doc.get("doctype"))
-	if not workflow:
-		return
+	# workflow change
+	workflow = get_workflow_name(doc)
+	if not workflow: return
 
 	if state == "on_trash":
 		clear_workflow_actions(doc.get("doctype"), doc.get("name"))
@@ -431,7 +431,7 @@ def clear_workflow_actions(doctype, name):
 
 
 def get_doc_workflow_state(doc):
-	workflow_name = get_workflow_name(doc.get("doctype"))
+	workflow_name = get_workflow_name(doc)
 	workflow_state_field = get_workflow_state_field(workflow_name)
 	return doc.get(workflow_state_field)
 
