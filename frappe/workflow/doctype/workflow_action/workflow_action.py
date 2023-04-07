@@ -138,7 +138,15 @@ def confirm_action(doctype, docname, user, action):
 		frappe.set_user(user)
 
 	doc = frappe.get_doc(doctype, docname)
-	newdoc = apply_workflow(doc, action)
+
+	#add to support Email Actions if apply_workflow has been overriden
+	resolved_apply_workflow = apply_workflow
+	hooks = frappe.get_hooks("override_whitelisted_methods")
+	for method in hooks:
+		if method == "frappe.model.workflow.apply_workflow":
+			resolved_apply_workflow = frappe.get_attr(hooks[method][0])
+
+	newdoc = resolved_apply_workflow(doc, action)
 	frappe.db.commit()
 	return_success_page(newdoc)
 
