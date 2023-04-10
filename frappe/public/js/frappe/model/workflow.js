@@ -36,35 +36,40 @@ frappe.workflow = {
 		frappe.workflow.setup(doc.doctype);
 		return frappe.xcall("frappe.model.workflow.get_transitions", { doc: doc });
 	},
+	//modified to return array instead of returning first item in array
 	get_document_state: function (doctype, state) {
 		frappe.workflow.setup(doctype);
 		return frappe.get_children(frappe.workflow.workflows[doctype], "states", {
 			state: state,
-		})[0];
+		});
 	},
 	is_self_approval_enabled: function (doctype) {
 		return frappe.workflow.workflows[doctype].allow_self_approval;
 	},
 	is_read_only: function (doctype, name) {
+		
 		var state_fieldname = frappe.workflow.get_state_fieldname(doctype);
-		if (state_fieldname) {
-			var doc = locals[doctype][name];
-			if (!doc) return false;
-			if (doc.__islocal) return false;
+		if (!state_fieldname) return false;
 
-			var state =
-				doc[state_fieldname] || frappe.workflow.get_default_state(doctype, doc.docstatus);
+		var doc = locals[doctype][name];
+		if (!doc) return false;
+		if (doc.__islocal) return false;
 
-			var allow_edit = state
-				? frappe.workflow.get_document_state(doctype, state) &&
-				  frappe.workflow.get_document_state(doctype, state).allow_edit
-				: null;
+		var state =
+			doc[state_fieldname] || frappe.workflow.get_default_state(doctype, doc.docstatus);
 
-			if (!frappe.user_roles.includes(allow_edit)) {
-				return true;
+		var states_in_state = frappe.workflow.get_document_state(doctype, state);
+		if (states_in_state){
+			for (var i = 0; i < states_in_state.length; i++) {
+				if(frappe.user_roles.includes(states_in_state[i].allow_edit))
+				{
+					return false
+				}
 			}
-		}
-		return false;
+		};
+
+		return true;
+		
 	},
 	get_update_fields: function (doctype) {
 		var update_fields = $.unique(
