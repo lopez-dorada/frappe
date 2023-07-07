@@ -16,6 +16,7 @@ import inspect
 import json
 import os
 import re
+import unicodedata
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, overload
 
@@ -42,7 +43,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "14.32.1"
+__version__ = "14.40.1"
 __title__ = "Frappe Framework"
 
 controllers = {}
@@ -182,9 +183,9 @@ if TYPE_CHECKING:
 # end: static analysis hack
 
 
-def init(site: str, sites_path: str = ".", new_site: bool = False) -> None:
+def init(site: str, sites_path: str = ".", new_site: bool = False, force=False) -> None:
 	"""Initialize frappe for the current site. Reset thread locals `frappe.local`"""
-	if getattr(local, "initialised", None):
+	if getattr(local, "initialised", None) and not force:
 		return
 
 	local.error_log = []
@@ -2263,6 +2264,7 @@ def bold(text):
 def safe_eval(code, eval_globals=None, eval_locals=None):
 	"""A safer `eval`"""
 	whitelisted_globals = {"int": int, "float": float, "long": int, "round": round}
+	code = unicodedata.normalize("NFKC", code)
 
 	UNSAFE_ATTRIBUTES = {
 		# Generator Attributes
