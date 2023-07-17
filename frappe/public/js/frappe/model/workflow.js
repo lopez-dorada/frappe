@@ -36,12 +36,13 @@ frappe.workflow = {
 		frappe.workflow.setup(doc.doctype);
 		return frappe.xcall("frappe.model.workflow.get_transitions", { doc: doc });
 	},
-	//modified to return array instead of returning first item in array
-	get_document_state: function (doctype, state) {
+	get_document_state_roles: function (doctype, state) {
 		frappe.workflow.setup(doctype);
-		return frappe.get_children(frappe.workflow.workflows[doctype], "states", {
-			state: state,
-		});
+		let workflow_states =
+			frappe.get_children(frappe.workflow.workflows[doctype], "states", { state: state }) ||
+			[];
+		let allow_edit_list = workflow_states.map((d) => d.allow_edit);
+		return allow_edit_list;
 	},
 	is_self_approval_enabled: function (doctype) {
 		return frappe.workflow.workflows[doctype].allow_self_approval;
@@ -55,21 +56,16 @@ frappe.workflow = {
 		if (!doc) return false;
 		if (doc.__islocal) return false;
 
-		var state =
-			doc[state_fieldname] || frappe.workflow.get_default_state(doctype, doc.docstatus);
+		var state = doc[state_fieldname] || frappe.workflow.get_default_state(doctype, doc.docstatus);
 
-		var states_in_state = frappe.workflow.get_document_state(doctype, state);
-		if (states_in_state){
-			for (var i = 0; i < states_in_state.length; i++) {
-				if(frappe.user_roles.includes(states_in_state[i].allow_edit))
-				{
-					return false
-				}
-			}
-		};
+		let allow_edit_roles = state
+			? frappe.workflow.get_document_state_roles(doctype, state)
+			: null;
+		let has_common_role = frappe.user_roles.some((role) =>
+			allow_edit_roles.includes(role)
+		);
 
-		return true;
-		
+		return !has_common_role;
 	},
 	get_update_fields: function (doctype) {
 		var update_fields = $.unique(
