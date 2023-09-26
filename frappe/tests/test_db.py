@@ -524,7 +524,7 @@ class TestDB(FrappeTestCase):
 		self.assertEqual((frappe.db.count("Note")), 2)
 
 		# simple filters
-		self.assertEqual((frappe.db.count("Note", ["title", "=", "note1"])), 1)
+		self.assertEqual((frappe.db.count("Note", [["title", "=", "note1"]])), 1)
 
 		frappe.get_doc(doctype="Note", title="note3", content="something other").insert()
 
@@ -918,7 +918,7 @@ class TestTransactionManagement(FrappeTestCase):
 # Treat same DB as replica for tests, a separate connection will be opened
 class TestReplicaConnections(FrappeTestCase):
 	def test_switching_to_replica(self):
-		with patch.dict(frappe.local.conf, {"read_from_replica": 1, "replica_host": "localhost"}):
+		with patch.dict(frappe.local.conf, {"read_from_replica": 1, "replica_host": "127.0.0.1"}):
 
 			def db_id():
 				return id(frappe.local.db)
