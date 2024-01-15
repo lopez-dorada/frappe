@@ -3,14 +3,14 @@ frappe.RoleEditor = class {
 		this.frm = frm;
 		this.wrapper = wrapper;
 		this.disable = disable;
-		let user_roles = this.frm.doc.roles.map((a) => a.role);
+		let user_roles = this.frm.doc.roles ? this.frm.doc.roles.map((a) => a.role) : [];
 		this.multicheck = frappe.ui.form.make_control({
 			parent: wrapper,
 			df: {
 				fieldname: "roles",
 				fieldtype: "MultiCheck",
 				select_all: true,
-				columns: 3,
+				columns: "15rem",
 				get_data: () => {
 					return frappe
 						.xcall("frappe.core.doctype.user.user.get_all_roles")
