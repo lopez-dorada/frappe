@@ -51,15 +51,15 @@ frappe.workflow = {
 		return frappe.workflow.workflows[doctype].allow_self_approval;
 	},
 	is_read_only: function (doctype, name) {
+		
 		var state_fieldname = frappe.workflow.get_state_fieldname(doctype);
-		if (state_fieldname) {
-			var doc = locals[doctype][name];
-			if (!doc) return false;
-			if (doc.__islocal) return false;
+		if (!state_fieldname) return false;
 
-			var state =
-				doc[state_fieldname] || frappe.workflow.get_default_state(doctype, doc.docstatus);
+		var doc = locals[doctype][name];
+		if (!doc) return false;
+		if (doc.__islocal) return false;
 
+		var state = doc[state_fieldname] || frappe.workflow.get_default_state(doctype, doc.docstatus);
 			let allow_edit_roles = state
 				? frappe.workflow.get_document_state_roles(doctype, state)
 				: null;
