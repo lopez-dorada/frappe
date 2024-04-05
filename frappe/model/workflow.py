@@ -25,15 +25,26 @@ class WorkflowTransitionError(frappe.ValidationError):
 class WorkflowPermissionError(frappe.ValidationError):
 	pass
 
-
-def get_workflow_name(doctype):
-	workflow_name = frappe.cache.hget("workflow", doctype)
-	if workflow_name is None:
-		workflow_name = frappe.db.get_value("Workflow", {"document_type": doctype, "is_active": 1}, "name")
-		frappe.cache.hset("workflow", doctype, workflow_name or "")
-
-	return workflow_name
-
+# workflow change
+def get_workflow_name(doc_or_doctype):
+	if type(doc_or_doctype) is str:
+		workflow_name = frappe.db.get_value("Workflow", {"document_type": doc_or_doctype,
+				"is_active": 1}, "name")
+		frappe.cache().hset('workflow', doc_or_doctype, workflow_name or '')
+		return workflow_name or ''
+	else:
+		workflow_name = doc_or_doctype.get('workflow')
+		if workflow_name:
+			frappe.cache().hset('workflow', doc_or_doctype.doctype, workflow_name)
+			return workflow_name
+		else:
+			workflow_name = get_workflow_name(doc_or_doctype.doctype)
+			if workflow_name:
+				frappe.cache().hset('workflow', doc_or_doctype.doctype, workflow_name)
+				return workflow_name
+			else:
+				frappe.cache().hset('workflow', doc_or_doctype.doctype, '')
+				return ''
 
 @frappe.whitelist()
 def get_transitions(
@@ -51,7 +62,7 @@ def get_transitions(
 
 	doc.check_permission("read")
 
-	workflow = workflow or get_workflow(doc.doctype)
+	workflow = workflow or get_workflow(doc)
 	current_state = doc.get(workflow.workflow_state_field)
 
 	if not current_state:
@@ -99,8 +110,9 @@ def is_transition_condition_satisfied(transition, doc) -> bool:
 def apply_workflow(doc, action):
 	"""Allow workflow action on the current doc"""
 	doc = frappe.get_doc(frappe.parse_json(doc))
+	# workflow change
+	workflow = get_workflow(doc)
 	doc.load_from_db()
-	workflow = get_workflow(doc.doctype)
 	transitions = get_transitions(doc, workflow)
 	user = frappe.session.user
 
@@ -144,8 +156,14 @@ def apply_workflow(doc, action):
 
 
 @frappe.whitelist()
-def can_cancel_document(doctype):
-	workflow = get_workflow(doctype)
+def can_cancel_document(doc_or_doctype): # args changes
+	# workflow change
+    try:
+        doc_or_doctype = json.loads(doc_or_doctype)
+        doc_or_doctype = frappe.get_doc(doc_or_doctype['doctype'],doc_or_doctype['name'])
+    except ValueError as e:
+        pass
+	workflow = get_workflow(doc_or_doctype)
 	cancelling_states = [s.state for s in workflow.states if s.doc_status == "2"]
 	if not cancelling_states:
 		return True
@@ -157,12 +175,14 @@ def can_cancel_document(doctype):
 
 
 def validate_workflow(doc):
-	"""Validate Workflow State and Transition for the current user.
+	'''Validate Workflow State and Transition for the current user.
 
 	- Check if user is allowed to edit in current state
 	- Check if user is allowed to transition to the next state (if changed)
-	"""
-	workflow = get_workflow(doc.doctype)
+	'''
+	# workflow change
+	workflow = get_workflow(doc)
+
 
 	current_state = None
 	if getattr(doc, "_doc_before_save", None):
