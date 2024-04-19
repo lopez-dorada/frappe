@@ -71,7 +71,9 @@ class TestWebhook(FrappeTestCase):
 	@classmethod
 	def tearDownClass(cls):
 		# delete any existing webhooks
+		frappe.db.rollback()
 		frappe.db.delete("Webhook")
+		frappe.db.commit()
 
 	def setUp(self):
 		# retrieve or create a User webhook for `after_insert`
@@ -204,7 +206,6 @@ class TestWebhook(FrappeTestCase):
 		self.assertTrue(frappe.get_all("Webhook Request Log", pluck="name"))
 
 	def test_webhook_with_array_body(self):
-
 		"""Check if array request body are supported."""
 		wh_config = {
 			"doctype": "Webhook",

@@ -1468,7 +1468,10 @@ frappe.ui.form.Form = class FrappeForm {
 		$.each(fields_list, function (i, fname) {
 			var docfield = frappe.meta.docfield_map[doctype][fname];
 			if (docfield) {
-				var label = __(docfield.label || "").replace(/\([^\)]*\)/g, ""); // eslint-disable-line
+				var label = __(docfield.label || "", null, docfield.parent).replace(
+					/\([^\)]*\)/g,
+					""
+				); // eslint-disable-line
 				if (parentfield) {
 					grid_field_label_map[doctype + "-" + fname] =
 						label.trim() + " (" + __(currency) + ")";
@@ -1701,17 +1704,19 @@ frappe.ui.form.Form = class FrappeForm {
 					if (opts.child) {
 						// update child doc
 						opts.child = locals[opts.child.doctype][opts.child.name];
-
-						var std_field_list = ["doctype"]
-							.concat(frappe.model.std_fields_list)
-							.concat(frappe.model.child_table_field_list);
-						for (var key in r.message) {
-							if (std_field_list.indexOf(key) === -1) {
-								opts.child[key] = r.message[key];
+						// if child row is deleted, don't update
+						if (opts.child) {
+							var std_field_list = ["doctype"]
+								.concat(frappe.model.std_fields_list)
+								.concat(frappe.model.child_table_field_list);
+							for (var key in r.message) {
+								if (std_field_list.indexOf(key) === -1) {
+									opts.child[key] = r.message[key];
+								}
 							}
-						}
 
-						me.fields_dict[opts.child.parentfield].refresh();
+							me.fields_dict[opts.child.parentfield].refresh();
+						}
 					} else {
 						// update parent doc
 						me.set_value(r.message);

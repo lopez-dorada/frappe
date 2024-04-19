@@ -2,12 +2,14 @@
 # License: MIT. See LICENSE
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from random import randint
 
 import click
-from croniter import croniter
+from croniter import CroniterBadCronError, croniter
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import get_datetime, now_datetime
 from frappe.utils.background_jobs import enqueue, is_job_enqueued
@@ -43,6 +45,7 @@ class ScheduledJobType(Document):
 		next_execution: DF.Datetime | None
 		server_script: DF.Link | None
 		stopped: DF.Check
+
 	# end: auto-generated types
 	def autoname(self):
 		self.name = ".".join(self.method.split(".")[-2:])
@@ -51,6 +54,17 @@ class ScheduledJobType(Document):
 		if self.frequency != "All":
 			# force logging for all events other than continuous ones (ALL)
 			self.create_log = 1
+
+		if self.frequency == "Cron":
+			if not self.cron_format:
+				frappe.throw(_("Cron format is required for job types with Cron frequency."))
+			try:
+				croniter(self.cron_format)
+			except CroniterBadCronError:
+				frappe.throw(
+					_("{0} is not a valid Cron expression.").format(f"<code>{self.cron_format}</code>"),
+					title=_("Bad Cron Expression"),
+				)
 
 	def enqueue(self, force=False) -> bool:
 		# enqueue event if last execution is done
@@ -110,7 +124,12 @@ class ScheduledJobType(Document):
 		# immediately, even when it's meant to be daily.
 		# A dynamic fallback like current time might miss the scheduler interval and job will never start.
 		last_execution = get_datetime(self.last_execution or self.creation)
-		return croniter(self.cron_format, last_execution).get_next(datetime)
+		next_execution = croniter(self.cron_format, last_execution).get_next(datetime)
+
+		jitter = 0
+		if self.frequency in ("Hourly Long", "Daily Long"):
+			jitter = randint(1, 600)
+		return next_execution + timedelta(seconds=jitter)
 
 	def execute(self):
 		self.scheduler_log = None
@@ -174,7 +193,7 @@ def run_scheduled_job(job_type: str):
 		print(frappe.get_traceback())
 
 
-def sync_jobs(hooks: dict = None):
+def sync_jobs(hooks: dict | None = None):
 	frappe.reload_doc("core", "doctype", "scheduled_job_type")
 	scheduler_events = hooks or frappe.get_hooks("scheduler_events")
 	all_events = insert_events(scheduler_events)
@@ -211,7 +230,7 @@ def insert_event_jobs(events: list, event_type: str) -> list:
 	return event_jobs
 
 
-def insert_single_event(frequency: str, event: str, cron_format: str = None):
+def insert_single_event(frequency: str, event: str, cron_format: str | None = None):
 	cron_expr = {"cron_format": cron_format} if cron_format else {}
 
 	try:
@@ -228,9 +247,7 @@ def insert_single_event(frequency: str, event: str, cron_format: str = None):
 		}
 	)
 
-	if not frappe.db.exists(
-		"Scheduled Job Type", {"method": event, "frequency": frequency, **cron_expr}
-	):
+	if not frappe.db.exists("Scheduled Job Type", {"method": event, "frequency": frequency, **cron_expr}):
 		savepoint = "scheduled_job_type_creation"
 		try:
 			frappe.db.savepoint(savepoint)
