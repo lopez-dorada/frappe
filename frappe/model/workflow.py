@@ -46,9 +46,7 @@ def get_workflow_name(doc_or_doctype):
 				return ''
 
 @frappe.whitelist()
-def get_transitions(
-	doc: Union["Document", str, dict], workflow: "Workflow" = None, raise_exception: bool = False
-) -> list[dict]:
+def get_transitions(doc: Union["Document", str, dict], workflow: "Workflow" = None, raise_exception: bool = False) -> list[dict]:
 	"""Return list of possible transitions for the given doc"""
 	from frappe.model.document import Document
 
@@ -154,15 +152,17 @@ def apply_workflow(doc, action):
 	return doc
 
 
+#chaging the arg back to doc from doc_or_doctype
+#the arg still accepts both
 @frappe.whitelist()
-def can_cancel_document(doc_or_doctype): # args changes
+def can_cancel_document(doc): # args changes
 	# workflow change
-    try:
-        doc_or_doctype = json.loads(doc_or_doctype)
-        doc_or_doctype = frappe.get_doc(doc_or_doctype['doctype'],doc_or_doctype['name'])
-    except ValueError as e:
-        pass
-	workflow = get_workflow(doc_or_doctype)
+	try:
+		doc = json.loads(doc)
+		doc = frappe.get_doc(doc['doctype'],doc['name'])
+	except ValueError as e:
+		pass
+	workflow = get_workflow(doc)
 	cancelling_states = [s.state for s in workflow.states if s.doc_status == "2"]
 	if not cancelling_states:
 		return True
