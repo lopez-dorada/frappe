@@ -32,6 +32,7 @@ from frappe.utils import (
 	sanitize_html,
 	strip_html,
 )
+from frappe.utils.data import convert_utc_to_system_timezone
 from frappe.utils.html_utils import unescape_html
 
 if TYPE_CHECKING:
@@ -392,11 +393,17 @@ class BaseDocument:
 
 				elif df.fieldtype in float_like_fields and not isinstance(value, float):
 					value = flt(value)
+				
+				# this supports datetime fields in the format of "2022-01-01T00:00:00Z"
+				# if this document is being created from a api call, using this format will all the date to be converted to the system timezone
+				elif df.fieldtype in "Datetime" and isinstance(value, str) and value != "" and value[-1] == "Z":
+					value = convert_utc_to_system_timezone(datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ"))
 
 				elif (df.fieldtype in datetime_fields and value == "") or (
 					getattr(df, "unique", False) and cstr(value).strip() == ""
 				):
 					value = None
+				
 
 			if convert_dates_to_str and isinstance(
 				value, datetime.datetime | datetime.date | datetime.time | datetime.timedelta
