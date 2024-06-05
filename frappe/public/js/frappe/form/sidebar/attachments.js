@@ -58,6 +58,7 @@ frappe.ui.form.Attachments = class Attachments {
 		var attachments = this.get_attachments();
 		this.render_attachments(attachments);
 		this.setup_show_all_button(attachments);
+		this.frm.trigger("attachments_on_refresh");
 	}
 
 	setup_show_all_button(attachments) {
