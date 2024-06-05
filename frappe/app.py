@@ -36,7 +36,12 @@ _sites_path = os.environ.get("SITES_PATH", ".")
 
 # If gc.freeze is done then importing modules before forking allows us to share the memory
 if frappe._tune_gc:
+	import gettext
+
+	import babel
+	import babel.messages
 	import bleach
+	import num2words
 	import pydantic
 
 	import frappe.boot
@@ -409,7 +414,6 @@ def sync_database(rollback: bool) -> bool:
 	# update session
 	if session := getattr(frappe.local, "session_obj", None):
 		if session.update():
-			frappe.db.commit()
 			rollback = False
 
 	return rollback
