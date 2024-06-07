@@ -107,10 +107,10 @@ export default class ListSettings {
 			}
 			//idx 0 is for name field and idx 1 is for tags field
 			let is_sortable = idx == 0 || idx == 1 ? `` : `sortable`;
-			let show_sortable_handle = idx == 0 || idx == 1  ? `hide` : ``;
-			let can_remove = idx == 0 ||  idx == 1  || is_status_field(me.fields[idx]) ? `hide` : ``;
+			let show_sortable_handle = idx == 0 || idx == 1 ? `hide` : ``;
+			let can_remove = idx == 0 || idx == 1 || is_status_field(me.fields[idx]) ? `hide` : ``;
 			let show_hide_icon = idx != 1 ? `hide` : ``;
-			
+
 			fields += `
 				<div class="control-input flex align-center form-control fields_order ${is_sortable}"
 					style="display: block; margin-bottom: 5px;" data-fieldname="${me.fields[idx].fieldname}"
@@ -265,7 +265,10 @@ export default class ListSettings {
 
 				if (me.fields.length === parseInt(me.dialog.get_values().total_fields)) {
 					break;
-				} else if (value != me.subject_field.fieldname && value != me.tag_field.fieldname) {
+				} else if (
+					value != me.subject_field.fieldname &&
+					value != me.tag_field.fieldname
+				) {
 					let field = frappe.meta.get_docfield(me.doctype, value);
 					if (field) {
 						me.fields.push({
