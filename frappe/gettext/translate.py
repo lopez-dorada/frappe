@@ -209,6 +209,7 @@ def update_po(target_app: str | None = None, locale: str | None = None):
 	"""
 	Add keys to available PO files, from POT file. This could be used to keep
 	track of available keys, and missing translations
+
 	:param target_app: Limit operation to `app`, if specified
 	"""
 	apps = [target_app] if target_app else frappe.get_all_apps(True)
@@ -218,7 +219,7 @@ def update_po(target_app: str | None = None, locale: str | None = None):
 		pot_catalog = get_catalog(app)
 		for locale in locales:
 			po_catalog = get_catalog(app, locale)
-			po_catalog.update(pot_catalog)
+			po_catalog.update(pot_catalog, no_fuzzy_matching=True)
 			po_path = write_catalog(app, po_catalog, locale)
 			print(f"PO file modified at {po_path}")
 
