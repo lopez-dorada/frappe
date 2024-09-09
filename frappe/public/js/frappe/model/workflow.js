@@ -52,22 +52,22 @@ frappe.workflow = {
 	},
 	is_read_only: function (doctype, name) {
 		var state_fieldname = frappe.workflow.get_state_fieldname(doctype);
-		if (state_fieldname) {
-			var doc = locals[doctype][name];
-			if (!doc) return false;
-			if (doc.__islocal) return false;
+		if (!state_fieldname) return false;
 
-			var state =
-				doc[state_fieldname] || frappe.workflow.get_default_state(doctype, doc.docstatus);
-			if (!state) return false;
+		var doc = locals[doctype][name];
+		if (!doc) return false;
+		if (doc.__islocal) return false;
 
-			let allow_edit_roles = frappe.workflow.get_document_state_roles(doctype, state);
-			let has_common_role = frappe.user_roles.some((role) =>
-				allow_edit_roles.includes(role)
-			);
-			return !has_common_role;
-		}
-		return false;
+		var state = doc[state_fieldname] || frappe.workflow.get_default_state(doctype, doc.docstatus);
+
+		let allow_edit_roles = state
+			? frappe.workflow.get_document_state_roles(doctype, state)
+			: [];
+		let has_common_role = frappe.user_roles.some((role) =>
+			allow_edit_roles.includes(role)
+		);
+
+		return !has_common_role;
 	},
 	get_update_fields: function (doctype) {
 		var update_fields = $.unique(
