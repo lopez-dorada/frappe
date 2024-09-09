@@ -179,7 +179,9 @@ def login_oauth_user(
 		frappe.respond_as_web_page(_("Invalid Request"), _("Token is missing"), http_status_code=417)
 		return
 
-	user = get_email(data)
+	user = get_user_from_social_login_userid(data, provider)
+	if not user:
+		user = get_email(data)
 
 	if not user:
 		frappe.respond_as_web_page(
@@ -315,3 +317,24 @@ def redirect_post_login(desk_user: bool, redirect_to: str | None = None, provide
 		redirect_to = frappe.utils.get_url(desk_uri if desk_user else "/me")
 
 	frappe.local.response["location"] = redirect_to
+
+def get_user_from_social_login_userid(data: dict, provider: str) -> str:
+	
+	social_user_id = None
+	match provider:
+		case "facebook" | "google" | "github":
+			social_user_id = data.get("id",None)
+		case "frappe" | "office_365":
+			social_user_id = data.get("sub",None) 
+		case "salesforce":
+			social_user_id = data.get("sub",None)
+			if social_user_id:
+				social_user_id = "/".join(social_user_id.split("/")[-2:])
+		case _:
+			user_id_property = (
+				frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub"
+			)
+			social_user_id = data.get(user_id_property,None)
+	if social_user_id:
+		return frappe.db.get_value("User Social Login", {"provider": provider, "userid": social_user_id}, "parent")
+	return None
