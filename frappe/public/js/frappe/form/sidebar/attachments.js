@@ -58,6 +58,7 @@ frappe.ui.form.Attachments = class Attachments {
 		var attachments = this.get_attachments();
 		this.render_attachments(attachments);
 		this.setup_show_all_button(attachments);
+		this.frm.trigger("attachments_on_refresh");
 	}
 
 	setup_show_all_button(attachments) {
@@ -208,9 +209,15 @@ frappe.ui.form.Attachments = class Attachments {
 		});
 	}
 	new_attachment(fieldname) {
+		
 		if (this.dialog) {
 			// remove upload dialog
 			this.dialog.$wrapper.remove();
+		}
+
+		if (this.frm.doc.__islocal) {
+			frappe.msgprint(__("Please save before attaching."));
+			throw "attach error";
 		}
 
 		const restrictions = {};
