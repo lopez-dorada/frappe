@@ -189,6 +189,7 @@ def login_oauth_user(
 		frappe.respond_as_web_page(_("Invalid Request"), _("Token is missing"), http_status_code=417)
 		return
 
+	frappe.logger().info(f"OAuth2 Login: {data}")
 	#get the user id from the user record based of sub or id from provider
 	#email address could be different from the provider
 	#fallback to email if user not found
@@ -372,7 +373,10 @@ def resolve_social_userid(data: dict, provider: str) -> str | None:
 				frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub"
 			)
 			social_user_id = data.get(user_id_property,None)
-	return social_user_id
+	frappe.logger().info(f"Social User ID: {social_user_id}")
+	if social_user_id:
+		return frappe.db.get_value("User Social Login", {"provider": provider, "userid": social_user_id}, "parent")
+	return None
 
 def set_existing_social_login_userid(user: "User", provider: str, userid: str) -> bool:
 	#loop over the social logins and find the provider and update the userid
