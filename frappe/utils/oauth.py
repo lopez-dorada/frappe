@@ -367,7 +367,7 @@ def resolve_social_userid(data: dict, provider: str) -> str | None:
 			social_user_id = data.get(user_id_property,None)
 	return social_user_id
 
-def set_existing_social_login_userid(user: User, provider: str, userid: str) -> bool:
+def set_existing_social_login_userid(user: "User", provider: str, userid: str) -> bool:
 	#loop over the social logins and find the provider and update the userid
 	for social_login in user.get("social_logins"):
 		if social_login.provider == provider:
