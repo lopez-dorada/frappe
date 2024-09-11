@@ -19,6 +19,10 @@ if TYPE_CHECKING:
 class SignupDisabledError(frappe.PermissionError):
 	...
 
+class ProviderSubjectMismatch(frappe.PermissionError):
+	...
+
+
 
 def get_oauth2_providers() -> dict[str, dict]:
 	out = {}
@@ -196,6 +200,14 @@ def login_oauth_user(
 	try:
 		if update_oauth_user(user, data, provider) is False:
 			return
+		
+	except ProviderSubjectMismatch:
+		frappe.respond_as_web_page(
+			_("Try Again Please"),
+			_("A mismatch was detected between the your login id and the provider's id. Please try again."),
+			http_status_code=417,
+		)
+		return
 
 	except SignupDisabledError:
 		return frappe.respond_as_web_page(
@@ -271,7 +283,8 @@ def update_oauth_user(user: str, data: dict, provider: str):
 		frappe.respond_as_web_page(_("Not Allowed"), _("User {0} is disabled").format(user.email))
 		return False
 
-	if not user.get_social_login_userid(provider):
+	social_user_id = user.get_social_login_userid(provider)
+	if not social_user_id:
 		update_user_record = True
 		match provider:
 			case "facebook":
@@ -290,6 +303,17 @@ def update_oauth_user(user: str, data: dict, provider: str):
 					frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub"
 				)
 				user.set_social_login_userid(provider, userid=data[user_id_property])
+	else:
+		#since we have a user for this "email", ensure that the subject id of record matches the one from the provider
+		#on next login the real user will be found by the social id userid
+		expected_social_user_id = resolve_social_userid(data, provider) 
+		if social_user_id != expected_social_user_id:
+			set_existing_social_login_userid(user, provider, userid=expected_social_user_id)
+			user.flags.ignore_permissions = True
+			user.save()
+			frappe.db.commit() #commit this change to the user record now because we are going to raise an error and that would normally rollback the transaction
+			raise ProviderSubjectMismatch(f"User {user.email} has a mismatched social login id for {provider}")
+	
 
 	if update_user_record:
 		user.flags.ignore_permissions = True
@@ -323,6 +347,12 @@ def redirect_post_login(desk_user: bool, redirect_to: str | None = None, provide
 	frappe.local.response["location"] = redirect_to
 
 def get_user_from_social_login_userid(data: dict, provider: str) -> str:
+	social_user_id = resolve_social_userid(data, provider)
+	if social_user_id:
+		return frappe.db.get_value("User Social Login", {"provider": provider, "userid": social_user_id}, "parent")
+	return None
+
+def resolve_social_userid(data: dict, provider: str) -> str | None:
 	match provider:
 		case "facebook" | "google" | "github":
 			social_user_id = data.get("id",None)
@@ -333,8 +363,16 @@ def get_user_from_social_login_userid(data: dict, provider: str) -> str:
 			if social_user_id:
 				social_user_id = "/".join(social_user_id.split("/")[-2:])
 		case _:
-			user_id_property = (frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub")
+			user_id_property = (
+				frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub"
+			)
 			social_user_id = data.get(user_id_property,None)
-	if social_user_id:
-		return frappe.db.get_value("User Social Login", {"provider": provider, "userid": social_user_id}, "parent")
-	return None
+	return social_user_id
+
+def set_existing_social_login_userid(user: "User", provider: str, userid: str) -> bool:
+	#loop over the social logins and find the provider and update the userid
+	for social_login in user.get("social_logins"):
+		if social_login.provider == provider:
+			social_login.userid = userid
+			return True
+	return False
