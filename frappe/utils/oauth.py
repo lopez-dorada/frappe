@@ -309,6 +309,7 @@ def update_oauth_user(user: str, data: dict, provider: str):
 		expected_social_user_id = resolve_social_userid(data, provider) 
 		if social_user_id != expected_social_user_id:
 			set_existing_social_login_userid(user, provider, userid=expected_social_user_id)
+			user.flags.ignore_permissions = True
 			user.save()
 			raise ProviderSubjectMismatch(f"User {user.email} has a mismatched social login id for {provider}")
 	
