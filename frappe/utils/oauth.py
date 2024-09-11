@@ -373,10 +373,7 @@ def resolve_social_userid(data: dict, provider: str) -> str | None:
 				frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub"
 			)
 			social_user_id = data.get(user_id_property,None)
-	frappe.logger("oauth").error(f"Social User ID: {social_user_id}")
-	if social_user_id:
-		return frappe.db.get_value("User Social Login", {"provider": provider, "userid": social_user_id}, "parent")
-	return None
+	return social_user_id
 
 def set_existing_social_login_userid(user: "User", provider: str, userid: str) -> bool:
 	#loop over the social logins and find the provider and update the userid
