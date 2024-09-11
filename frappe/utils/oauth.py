@@ -311,6 +311,7 @@ def update_oauth_user(user: str, data: dict, provider: str):
 			set_existing_social_login_userid(user, provider, userid=expected_social_user_id)
 			user.flags.ignore_permissions = True
 			user.save()
+			frappe.db.commit() #commit this change to the user record now because we are going to raise an error and that would normally rollback the transaction
 			raise ProviderSubjectMismatch(f"User {user.email} has a mismatched social login id for {provider}")
 	
 
