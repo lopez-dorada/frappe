@@ -32,6 +32,11 @@ def get_oauth2_providers() -> dict[str, dict]:
 		if provider.custom_base_url:
 			authorize_url = provider.base_url + provider.authorize_url
 			access_token_url = provider.base_url + provider.access_token_url
+
+		# Keycloak needs this, the base URL also has a route, that urljoin() ignores
+		if provider.name == "keycloak":
+			provider.api_endpoint = provider.base_url + provider.api_endpoint
+
 		out[provider.name] = {
 			"flow_params": {
 				"name": provider.name,
@@ -347,12 +352,6 @@ def redirect_post_login(desk_user: bool, redirect_to: str | None = None, provide
 	frappe.local.response["location"] = redirect_to
 
 def get_user_from_social_login_userid(data: dict, provider: str) -> str:
-	social_user_id = resolve_social_userid(data, provider)
-	if social_user_id:
-		return frappe.db.get_value("User Social Login", {"provider": provider, "userid": social_user_id}, "parent")
-	return None
-
-def resolve_social_userid(data: dict, provider: str) -> str | None:
 	match provider:
 		case "facebook" | "google" | "github":
 			social_user_id = data.get("id",None)
@@ -363,16 +362,8 @@ def resolve_social_userid(data: dict, provider: str) -> str | None:
 			if social_user_id:
 				social_user_id = "/".join(social_user_id.split("/")[-2:])
 		case _:
-			user_id_property = (
-				frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub"
-			)
+			user_id_property = (frappe.db.get_value("Social Login Key", provider, "user_id_property") or "sub")
 			social_user_id = data.get(user_id_property,None)
-	return social_user_id
-
-def set_existing_social_login_userid(user: "User", provider: str, userid: str) -> bool:
-	#loop over the social logins and find the provider and update the userid
-	for social_login in user.get("social_logins"):
-		if social_login.provider == provider:
-			social_login.userid = userid
-			return True
-	return False
+	if social_user_id:
+		return frappe.db.get_value("User Social Login", {"provider": provider, "userid": social_user_id}, "parent")
+	return None
